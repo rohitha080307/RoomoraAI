@@ -1,0 +1,68 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f7fb;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 70px 20px;
+  text-align: center;
+}
+
+.app h1 {
+  font-size: 42px;
+  color: #243b53;
+  margin-bottom: 10px;
+}
+
+.app > p {
+  color: #627d98;
+  font-size: 18px;
+  margin-bottom: 50px;
+}
+
+.options {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.option-card {
+  background: white;
+  width: 320px;
+  padding: 35px 25px;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.option-card h2 {
+  color: #243b53;
+  margin-bottom: 15px;
+}
+
+.option-card p {
+  color: #627d98;
+  line-height: 1.6;
+  min-height: 50px;
+}
+
+.option-card button {
+  margin-top: 20px;
+  padding: 12px 22px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.option-card button:hover {
+  background: #1d4ed8;
+}
