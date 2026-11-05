@@ -296,3 +296,12 @@
     padding: 18px;
   }
 }
+.rooms-error {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  overflow-wrap: anywhere;
+}

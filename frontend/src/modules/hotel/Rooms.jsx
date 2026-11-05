@@ -1,30 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../services/supabase'
 import '../../styles/rooms.css'
 
 function Rooms() {
   const navigate = useNavigate()
 
-  const [rooms, setRooms] = useState([
-    {
-      id: 1,
-      roomNumber: '101',
-      floor: 1,
-      type: 'Double',
-      capacity: 2,
-      price: 1500,
-      status: 'Available',
-    },
-    {
-      id: 2,
-      roomNumber: '102',
-      floor: 1,
-      type: 'Single',
-      capacity: 1,
-      price: 1000,
-      status: 'Occupied',
-    },
-  ])
+  const [rooms, setRooms] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const [roomNumber, setRoomNumber] = useState('')
   const [floor, setFloor] = useState('1')
@@ -32,6 +17,29 @@ function Rooms() {
   const [capacity, setCapacity] = useState('2')
   const [price, setPrice] = useState('')
   const [status, setStatus] = useState('Available')
+
+  const loadRooms = async () => {
+    setLoading(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('hotel_rooms')
+      .select('*')
+      .order('floor', { ascending: true })
+      .order('room_number', { ascending: true })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setRooms(data || [])
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadRooms()
+  }, [])
 
   const availableRooms = rooms.filter(
     (room) => room.status === 'Available'
@@ -45,58 +53,85 @@ function Rooms() {
     (room) => room.status === 'Maintenance'
   ).length
 
-  const handleAddRoom = (event) => {
+  const handleAddRoom = async (event) => {
     event.preventDefault()
+    setError('')
 
     if (!roomNumber.trim() || !price || Number(price) <= 0) {
-      alert('Please enter a room number and a valid price.')
+      setError('Please enter a room number and a valid price.')
       return
     }
 
-    const roomExists = rooms.some(
-      (room) =>
-        room.roomNumber.toLowerCase() === roomNumber.trim().toLowerCase()
-    )
-
-    if (roomExists) {
-      alert('This room number already exists.')
-      return
-    }
+    setSaving(true)
 
     const newRoom = {
-      id: Date.now(),
-      roomNumber: roomNumber.trim(),
+      room_number: roomNumber.trim(),
       floor: Number(floor),
-      type,
+      room_type: type,
       capacity: Number(capacity),
-      price: Number(price),
+      price_per_night: Number(price),
       status,
     }
 
-    setRooms((previousRooms) => [...previousRooms, newRoom])
+    const { data, error } = await supabase
+      .from('hotel_rooms')
+      .insert([newRoom])
+      .select()
+      .single()
 
-    setRoomNumber('')
-    setFloor('1')
-    setType('Double')
-    setCapacity('2')
-    setPrice('')
-    setStatus('Available')
+    if (error) {
+      setError(error.message)
+    } else {
+      setRooms((previousRooms) => [...previousRooms, data])
+      setRoomNumber('')
+      setFloor('1')
+      setType('Double')
+      setCapacity('2')
+      setPrice('')
+      setStatus('Available')
+    }
+
+    setSaving(false)
   }
 
-  const handleStatusChange = (roomId, newStatus) => {
-    setRooms((previousRooms) =>
-      previousRooms.map((room) =>
-        room.id === roomId ? { ...room, status: newStatus } : room
+  const handleStatusChange = async (roomId, newStatus) => {
+    setError('')
+
+    const { data, error } = await supabase
+      .from('hotel_rooms')
+      .update({ status: newStatus })
+      .eq('id', roomId)
+      .select()
+      .single()
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setRooms((previousRooms) =>
+        previousRooms.map((room) =>
+          room.id === roomId ? data : room
+        )
       )
-    )
+    }
   }
 
-  const handleDeleteRoom = (roomId) => {
+  const handleDeleteRoom = async (roomId) => {
     const confirmDelete = window.confirm(
       'Are you sure you want to delete this room?'
     )
 
-    if (confirmDelete) {
+    if (!confirmDelete) return
+
+    setError('')
+
+    const { error } = await supabase
+      .from('hotel_rooms')
+      .delete()
+      .eq('id', roomId)
+
+    if (error) {
+      setError(error.message)
+    } else {
       setRooms((previousRooms) =>
         previousRooms.filter((room) => room.id !== roomId)
       )
@@ -121,6 +156,8 @@ function Rooms() {
           ← Back to Dashboard
         </button>
       </header>
+
+      {error && <div className="rooms-error">{error}</div>}
 
       <section className="room-summary">
         <div className="summary-card">
@@ -155,10 +192,9 @@ function Rooms() {
             <label htmlFor="roomNumber">Room Number</label>
             <input
               id="roomNumber"
-              type="text"
-              placeholder="e.g. 103"
               value={roomNumber}
               onChange={(event) => setRoomNumber(event.target.value)}
+              placeholder="e.g. 103"
               required
             />
           </div>
@@ -208,9 +244,9 @@ function Rooms() {
               id="price"
               type="number"
               min="1"
-              placeholder="e.g. 1500"
               value={price}
               onChange={(event) => setPrice(event.target.value)}
+              placeholder="e.g. 1500"
               required
             />
           </div>
@@ -228,8 +264,8 @@ function Rooms() {
             </select>
           </div>
 
-          <button className="add-room-button" type="submit">
-            + Add Room
+          <button className="add-room-button" type="submit" disabled={saving}>
+            {saving ? 'Saving...' : '+ Add Room'}
           </button>
         </form>
       </section>
@@ -237,13 +273,15 @@ function Rooms() {
       <section className="room-list-section">
         <div className="section-heading">
           <h2>Room List</h2>
-          <p>Update room status or remove a room.</p>
+          <p>Room details saved in your database.</p>
         </div>
 
-        {rooms.length === 0 ? (
+        {loading ? (
+          <p>Loading rooms...</p>
+        ) : rooms.length === 0 ? (
           <div className="empty-state">
             <h3>No rooms added yet</h3>
-            <p>Use the form above to add your first room.</p>
+            <p>Add your first room using the form above.</p>
           </div>
         ) : (
           <div className="room-table-wrapper">
@@ -263,11 +301,13 @@ function Rooms() {
               <tbody>
                 {rooms.map((room) => (
                   <tr key={room.id}>
-                    <td className="room-number-cell">{room.roomNumber}</td>
+                    <td className="room-number-cell">{room.room_number}</td>
                     <td>{room.floor}</td>
-                    <td>{room.type}</td>
+                    <td>{room.room_type}</td>
                     <td>{room.capacity} guests</td>
-                    <td>₹{room.price.toLocaleString('en-IN')}</td>
+                    <td>
+                      ₹{Number(room.price_per_night).toLocaleString('en-IN')}
+                    </td>
                     <td>
                       <span
                         className={`room-status status-${room.status
@@ -280,8 +320,8 @@ function Rooms() {
                     <td>
                       <div className="room-actions">
                         <select
-                          aria-label={`Change status for room ${room.roomNumber}`}
                           value={room.status}
+                          aria-label={`Status for room ${room.room_number}`}
                           onChange={(event) =>
                             handleStatusChange(room.id, event.target.value)
                           }
