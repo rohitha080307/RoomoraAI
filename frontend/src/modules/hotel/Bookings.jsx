@@ -1,12 +1,16 @@
+
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
+import '../../styles/bookings.css'
 
 function Bookings() {
   const navigate = useNavigate()
 
   const [bookings, setBookings] = useState([])
   const [rooms, setRooms] = useState([])
+  const [bookedRoomIds, setBookedRoomIds] = useState([])
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -19,34 +23,46 @@ function Bookings() {
   const [guests, setGuests] = useState('1')
   const [totalAmount, setTotalAmount] = useState('')
 
+  const selectedRoom = rooms.find(
+    (room) => String(room.id) === roomId
+  )
+
+  // Load rooms and bookings
   const loadData = async () => {
     setLoading(true)
     setError('')
 
-    const [roomsResult, bookingsResult] = await Promise.all([
-      supabase
-        .from('hotel_rooms')
-        .select('*')
-        .eq('status', 'Available')
-        .order('room_number'),
-      supabase
-        .from('hotel_bookings')
-        .select('*, hotel_rooms(room_number, room_type)')
-        .order('created_at', { ascending: false }),
-    ])
+    const { data: roomData, error: roomError } = await supabase
+      .from('hotel_rooms')
+      .select('*')
+      .eq('status', 'Available')
+      .order('room_number')
 
-    if (roomsResult.error) {
-      setError(roomsResult.error.message)
-    } else {
-      setRooms(roomsResult.data || [])
+    if (roomError) {
+      setError(roomError.message)
+      setLoading(false)
+      return
     }
 
-    if (bookingsResult.error) {
-      setError(bookingsResult.error.message)
-    } else {
-      setBookings(bookingsResult.data || [])
+    const { data: bookingData, error: bookingError } = await supabase
+      .from('hotel_bookings')
+      .select(`
+        *,
+        hotel_rooms (
+          room_number,
+          room_type
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (bookingError) {
+      setError(bookingError.message)
+      setLoading(false)
+      return
     }
 
+    setRooms(roomData || [])
+    setBookings(bookingData || [])
     setLoading(false)
   }
 
@@ -54,12 +70,66 @@ function Bookings() {
     loadData()
   }, [])
 
+  // Check room availability
+  useEffect(() => {
+    const checkAvailability = async () => {
+      if (!checkIn || !checkOut || checkOut <= checkIn) {
+        setBookedRoomIds([])
+        return
+      }
+
+      const { data, error: availabilityError } = await supabase
+        .from('hotel_bookings')
+        .select('room_id')
+        .neq('booking_status', 'Cancelled')
+        .lt('check_in', checkOut)
+        .gt('check_out', checkIn)
+
+      if (availabilityError) {
+        setError(availabilityError.message)
+        return
+      }
+
+      setBookedRoomIds(
+        (data || []).map((booking) => booking.room_id)
+      )
+    }
+
+    checkAvailability()
+  }, [checkIn, checkOut])
+
+  // Calculate total amount
+  useEffect(() => {
+    if (!selectedRoom || !checkIn || !checkOut || checkOut <= checkIn) {
+      setTotalAmount('')
+      return
+    }
+
+    const numberOfNights = Math.round(
+      (new Date(checkOut) - new Date(checkIn)) /
+        (1000 * 60 * 60 * 24)
+    )
+
+    const total =
+      Number(selectedRoom.price_per_night) * numberOfNights
+
+    setTotalAmount(String(total))
+  }, [roomId, checkIn, checkOut, rooms])
+
+  // Create booking
   const handleCreateBooking = async (event) => {
     event.preventDefault()
     setError('')
 
-    if (!roomId || !checkIn || !checkOut || !totalAmount) {
-      setError('Please fill in all booking details.')
+    if (
+      !guestName.trim() ||
+      !phone.trim() ||
+      !roomId ||
+      !checkIn ||
+      !checkOut ||
+      !guests
+    ) {
+      setError('Please fill in all required fields.')
       return
     }
 
@@ -68,114 +138,155 @@ function Bookings() {
       return
     }
 
+    if (Number(guests) < 1) {
+      setError('Number of guests must be at least 1.')
+      return
+    }
+
+    if (!selectedRoom) {
+      setError('Please select a valid room.')
+      return
+    }
+
+    if (Number(guests) > Number(selectedRoom.capacity)) {
+      setError(
+        `This room allows a maximum of ${selectedRoom.capacity} guests.`
+      )
+      return
+    }
+
+    if (bookedRoomIds.includes(Number(roomId))) {
+      setError(
+        'This room is already booked for the selected dates. Please choose another room.'
+      )
+      return
+    }
+
     setSaving(true)
 
-    const booking = {
-      guest_name: guestName.trim(),
-      phone: phone.trim(),
-      room_id: Number(roomId),
-      check_in: checkIn,
-      check_out: checkOut,
-      guests: Number(guests),
-      booking_status: 'Booked',
-      total_amount: Number(totalAmount),
-    }
-
-    const { data, error } = await supabase
-  .from('hotel_bookings')
-  .insert([booking])
-  .select('*, hotel_rooms(room_number, room_type)')
-  .single()
-
-if (error) {
-  if (error.code === '23P01') {
-    setError(
-      'This room is already booked for some or all of those dates. Please choose another room or date range.'
-    )
-  } else {
-    setError(error.message)
-  }
-} else {
-  setBookings((previous) => [data, ...previous])
-  setGuestName('')
-  setPhone('')
-  setRoomId('')
-  setCheckIn('')
-  setCheckOut('')
-  setGuests('1')
-  setTotalAmount('')
-}
-
-setSaving(false)
-  }
-
-  const handleStatusChange = async (bookingId, newStatus) => {
-    setError('')
-
-    const { data, error } = await supabase
+    const { error: insertError } = await supabase
       .from('hotel_bookings')
-      .update({ booking_status: newStatus })
-      .eq('id', bookingId)
-      .select('*, hotel_rooms(room_number, room_type)')
-      .single()
+      .insert([
+        {
+          guest_name: guestName.trim(),
+          phone: phone.trim(),
+          room_id: Number(roomId),
+          check_in: checkIn,
+          check_out: checkOut,
+          guests: Number(guests),
+          total_amount: Number(totalAmount),
+          booking_status: 'Booked',
+        },
+      ])
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setBookings((previous) =>
-        previous.map((booking) =>
-          booking.id === bookingId ? data : booking
+    if (insertError) {
+      if (insertError.code === '23P01') {
+        setError(
+          'This room is already booked for the selected dates. Please choose another room.'
         )
-      )
+      } else {
+        setError(insertError.message)
+      }
+
+      setSaving(false)
+      return
     }
+
+    setGuestName('')
+    setPhone('')
+    setRoomId('')
+    setCheckIn('')
+    setCheckOut('')
+    setGuests('1')
+    setTotalAmount('')
+
+    await loadData()
+    setSaving(false)
   }
 
-  const handleDeleteBooking = async (bookingId) => {
-    if (!window.confirm('Delete this booking?')) return
+  // Update booking status
+  const handleStatusChange = async (id, status) => {
+    const { error: updateError } = await supabase
+      .from('hotel_bookings')
+      .update({ booking_status: status })
+      .eq('id', id)
 
-    const { error } = await supabase
+    if (updateError) {
+      setError(updateError.message)
+      return
+    }
+
+    await loadData()
+  }
+
+  // Delete booking
+  const handleDeleteBooking = async (id) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this booking?'
+    )
+
+    if (!confirmed) return
+
+    const { error: deleteError } = await supabase
       .from('hotel_bookings')
       .delete()
-      .eq('id', bookingId)
+      .eq('id', id)
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setBookings((previous) =>
-        previous.filter((booking) => booking.id !== bookingId)
-      )
+    if (deleteError) {
+      setError(deleteError.message)
+      return
     }
+
+    await loadData()
+  }
+
+  if (loading) {
+    return (
+      <div className="bookings-page">
+        <p>Loading bookings...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="rooms-page">
-      <header className="rooms-header">
+    <div className="bookings-page">
+
+      {/* Header */}
+      <div className="bookings-header">
         <div>
-          <p className="rooms-eyebrow">HOTEL MANAGEMENT</p>
-          <h1>Bookings</h1>
-          <p className="rooms-subtitle">
-            Create and manage guest reservations.
-          </p>
+          <h1>Manage Bookings</h1>
+          <p>Manage guest reservations and room bookings.</p>
         </div>
 
-        <button className="back-button" onClick={() => navigate('/hotel')}>
-          ← Back to Dashboard
+        <button
+          className="booking-back-button"
+          onClick={() => navigate('/hotel')}
+        >
+          Back to Dashboard
         </button>
-      </header>
+      </div>
 
-      {error && <div className="rooms-error">{error}</div>}
-
-      <section className="room-form-section">
-        <div className="section-heading">
-          <h2>Create Booking</h2>
-          <p>Enter the guest and reservation details.</p>
+      {error && (
+        <div className="booking-error">
+          {error}
         </div>
+      )}
 
-        <form className="room-form" onSubmit={handleCreateBooking}>
+      {/* Create Booking Form */}
+      <div className="booking-form-section">
+        <h2>Create New Booking</h2>
+
+        <form
+          className="booking-form"
+          onSubmit={handleCreateBooking}
+        >
+
           <div className="form-field">
             <label htmlFor="guestName">Guest Name</label>
             <input
               id="guestName"
+              type="text"
+              placeholder="Enter guest name"
               value={guestName}
               onChange={(event) => setGuestName(event.target.value)}
               required
@@ -187,6 +298,7 @@ setSaving(false)
             <input
               id="phone"
               type="tel"
+              placeholder="Enter phone number"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               required
@@ -194,18 +306,20 @@ setSaving(false)
           </div>
 
           <div className="form-field">
-            <label htmlFor="bookingRoom">Available Room</label>
+            <label htmlFor="roomId">Select Room</label>
             <select
-              id="bookingRoom"
+              id="roomId"
               value={roomId}
               onChange={(event) => setRoomId(event.target.value)}
               required
             >
               <option value="">Select a room</option>
+
               {rooms.map((room) => (
                 <option key={room.id} value={room.id}>
-                  Room {room.room_number} — {room.room_type} (₹
-                  {Number(room.price_per_night).toLocaleString('en-IN')}/night)
+                  Room {room.room_number} - {room.room_type} -
+                  ₹{room.price_per_night}/night -
+                  Max {room.capacity} guests
                 </option>
               ))}
             </select>
@@ -227,6 +341,7 @@ setSaving(false)
             <input
               id="checkOut"
               type="date"
+              min={checkIn || undefined}
               value={checkOut}
               onChange={(event) => setCheckOut(event.target.value)}
               required
@@ -239,10 +354,17 @@ setSaving(false)
               id="guests"
               type="number"
               min="1"
+              max={selectedRoom?.capacity || undefined}
               value={guests}
               onChange={(event) => setGuests(event.target.value)}
               required
             />
+
+            {selectedRoom && (
+              <small>
+                Maximum guests allowed: {selectedRoom.capacity}
+              </small>
+            )}
           </div>
 
           <div className="form-field">
@@ -250,45 +372,50 @@ setSaving(false)
             <input
               id="totalAmount"
               type="number"
-              min="0"
               value={totalAmount}
-              onChange={(event) => setTotalAmount(event.target.value)}
-              placeholder="Enter total amount"
-              required
+              readOnly
             />
           </div>
 
-          <button className="add-room-button" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : '+ Create Booking'}
+          {selectedRoom && (
+            <div className="booking-summary">
+              <p>
+                <strong>Selected Room:</strong> {selectedRoom.room_number}
+              </p>
+              <p>
+                <strong>Maximum Capacity:</strong> {selectedRoom.capacity} guests
+              </p>
+              <p>
+                <strong>Price per Night:</strong> ₹{selectedRoom.price_per_night}
+              </p>
+            </div>
+          )}
+
+          <button
+            className="create-booking-button"
+            type="submit"
+            disabled={saving}
+          >
+            {saving ? 'Creating Booking...' : 'Create Booking'}
           </button>
+
         </form>
+      </div>
 
-        {rooms.length === 0 && !loading && (
-          <p className="rooms-subtitle">
-            No available rooms. Add a room or mark an existing room as Available.
-          </p>
-        )}
-      </section>
+      {/* Booking List */}
+      <div className="booking-list-section">
+        <h2>All Bookings</h2>
 
-      <section className="room-list-section">
-        <div className="section-heading">
-          <h2>Booking List</h2>
-          <p>All saved reservations.</p>
-        </div>
-
-        {loading ? (
-          <p>Loading bookings...</p>
-        ) : bookings.length === 0 ? (
-          <div className="empty-state">
-            <h3>No bookings yet</h3>
-            <p>Create a booking using the form above.</p>
+        {bookings.length === 0 ? (
+          <div className="booking-empty">
+            No bookings found.
           </div>
         ) : (
-          <div className="room-table-wrapper">
-            <table className="room-table">
+          <div className="booking-table-wrapper">
+            <table className="booking-table">
               <thead>
                 <tr>
-                  <th>Guest</th>
+                  <th>Guest Name</th>
                   <th>Phone</th>
                   <th>Room</th>
                   <th>Check-in</th>
@@ -305,28 +432,37 @@ setSaving(false)
                   <tr key={booking.id}>
                     <td>{booking.guest_name}</td>
                     <td>{booking.phone}</td>
+
                     <td>
-                      {booking.hotel_rooms
-                        ? `Room ${booking.hotel_rooms.room_number}`
-                        : 'Room'}
+                      {booking.hotel_rooms?.room_number || 'N/A'}
                     </td>
+
                     <td>{booking.check_in}</td>
                     <td>{booking.check_out}</td>
                     <td>{booking.guests}</td>
+                    <td>₹{booking.total_amount}</td>
+
                     <td>
-                      ₹{Number(booking.total_amount).toLocaleString('en-IN')}
-                    </td>
-                    <td>
-                      <span className="room-status status-available">
+                      <span
+                        className={`booking-status ${
+                          booking.booking_status
+                            .toLowerCase()
+                            .replace(' ', '-')
+                        }`}
+                      >
                         {booking.booking_status}
                       </span>
                     </td>
+
                     <td>
-                      <div className="room-actions">
+                      <div className="booking-actions">
                         <select
                           value={booking.booking_status}
                           onChange={(event) =>
-                            handleStatusChange(booking.id, event.target.value)
+                            handleStatusChange(
+                              booking.id,
+                              event.target.value
+                            )
                           }
                         >
                           <option value="Booked">Booked</option>
@@ -336,8 +472,11 @@ setSaving(false)
                         </select>
 
                         <button
-                          className="delete-room-button"
-                          onClick={() => handleDeleteBooking(booking.id)}
+                          className="delete-booking-button"
+                          type="button"
+                          onClick={() =>
+                            handleDeleteBooking(booking.id)
+                          }
                         >
                           Delete
                         </button>
@@ -349,7 +488,8 @@ setSaving(false)
             </table>
           </div>
         )}
-      </section>
+      </div>
+
     </div>
   )
 }

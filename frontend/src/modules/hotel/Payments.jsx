@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from 'react'
 import { supabase } from '../../services/supabase'
-import '../../styles/rooms.css'
+import '../../styles/payments.css'
 
 function Payments() {
   const [bookings, setBookings] = useState([])
@@ -86,37 +87,99 @@ function Payments() {
     setPaymentMethod('UPI')
     setPaymentStatus('Paid')
     setNotes('')
+
     await loadData()
   }
 
+  const totalReceived = payments
+    .filter(payment => payment.payment_status === 'Paid')
+    .reduce((total, payment) => total + Number(payment.amount), 0)
+
+  const pendingCount = payments.filter(
+    payment => payment.payment_status === 'Pending'
+  ).length
+
   if (loading) {
-    return <div className="rooms-page">Loading payments...</div>
+    return (
+      <div className="payments-page">
+        <p className="payments-loading">Loading payments...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="rooms-page">
-      <div className="rooms-header">
+    <div className="payments-page">
+
+      <div className="payments-header">
         <div>
-          <h1>Hotel Payments</h1>
-          <p>Record and view guest payments</p>
+          <span className="payments-eyebrow">FINANCIAL MANAGEMENT</span>
+          <h1>Payments</h1>
+          <p>Manage transactions and keep track of guest payments.</p>
         </div>
       </div>
 
-      {message && <p className="rooms-error">{message}</p>}
+      {message && (
+        <div className={`payments-message ${
+          message === 'Payment recorded successfully.'
+            ? 'success'
+            : 'error'
+        }`}>
+          {message}
+        </div>
+      )}
 
-      <div className="rooms-table-container" style={{ padding: '20px' }}>
-        <h2>Record Payment</h2>
+      <div className="payment-summary">
 
-        <form onSubmit={addPayment}>
-          <div className="form-grid">
-            <label>
-              Booking / Guest
+        <div className="payment-summary-card">
+          <div className="payment-summary-icon">↗</div>
+          <div>
+            <p>Total Transactions</p>
+            <h2>{payments.length}</h2>
+          </div>
+        </div>
+
+        <div className="payment-summary-card">
+          <div className="payment-summary-icon">₹</div>
+          <div>
+            <p>Amount Received</p>
+            <h2>₹{totalReceived.toLocaleString('en-IN', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })}</h2>
+          </div>
+        </div>
+
+        <div className="payment-summary-card">
+          <div className="payment-summary-icon">◷</div>
+          <div>
+            <p>Pending Payments</p>
+            <h2>{pendingCount}</h2>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="payments-content">
+
+        <section className="payment-form-card">
+          <div className="payment-section-heading">
+            <div>
+              <span>NEW TRANSACTION</span>
+              <h2>Record Payment</h2>
+              <p>Enter the guest's payment details below.</p>
+            </div>
+          </div>
+
+          <form onSubmit={addPayment} className="payment-form">
+
+            <label className="payment-field">
+              <span>Booking / Guest</span>
               <select
                 value={bookingId}
                 onChange={(event) => setBookingId(event.target.value)}
                 required
               >
-                <option value="">Select booking</option>
+                <option value="">Select a booking</option>
                 {bookings.map((booking) => (
                   <option key={booking.id} value={booking.id}>
                     #{booking.id} - {booking.guest_name}
@@ -125,20 +188,21 @@ function Payments() {
               </select>
             </label>
 
-            <label>
-              Amount (₹)
+            <label className="payment-field">
+              <span>Amount (₹)</span>
               <input
                 type="number"
                 min="0.01"
                 step="0.01"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
+                placeholder="Enter amount"
                 required
               />
             </label>
 
-            <label>
-              Payment Method
+            <label className="payment-field">
+              <span>Payment Method</span>
               <select
                 value={paymentMethod}
                 onChange={(event) => setPaymentMethod(event.target.value)}
@@ -150,8 +214,8 @@ function Payments() {
               </select>
             </label>
 
-            <label>
-              Payment Status
+            <label className="payment-field">
+              <span>Payment Status</span>
               <select
                 value={paymentStatus}
                 onChange={(event) => setPaymentStatus(event.target.value)}
@@ -161,59 +225,89 @@ function Payments() {
               </select>
             </label>
 
-            <label>
-              Notes
-              <input
-                type="text"
+            <label className="payment-field">
+              <span>Notes <small>(Optional)</small></span>
+              <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Optional"
+                placeholder="Add any payment details..."
+                rows="3"
               />
             </label>
+
+            <button type="submit" className="payment-submit-btn">
+              Record Payment
+            </button>
+
+          </form>
+        </section>
+
+        <section className="payment-history-card">
+          <div className="payment-section-heading history-heading">
+            <div>
+              <span>TRANSACTION HISTORY</span>
+              <h2>Payment Records</h2>
+              <p>View all recorded guest transactions.</p>
+            </div>
+            <span className="payment-record-count">
+              {payments.length} Records
+            </span>
           </div>
 
-          <button type="submit" className="primary-btn">
-            Record Payment
-          </button>
-        </form>
-      </div>
+          {payments.length === 0 ? (
+            <div className="payment-empty">
+              <div className="payment-empty-icon">₹</div>
+              <h3>No payments yet</h3>
+              <p>Recorded transactions will appear here.</p>
+            </div>
+          ) : (
+            <div className="payment-table-wrapper">
+              <table className="payment-table">
+                <thead>
+                  <tr>
+                    <th>Guest</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
 
-      <div className="rooms-table-container" style={{ marginTop: '24px' }}>
-        <h2 style={{ padding: '20px 20px 0' }}>Payment Records</h2>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td className="payment-guest">
+                        {payment.hotel_bookings?.guest_name || 'Unknown guest'}
+                      </td>
 
-        {payments.length === 0 ? (
-          <p style={{ padding: '20px' }}>No payments recorded yet.</p>
-        ) : (
-          <table className="rooms-table">
-            <thead>
-              <tr>
-                <th>Guest</th>
-                <th>Amount</th>
-                <th>Method</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
+                      <td className="payment-amount">
+                        ₹{Number(payment.amount).toFixed(2)}
+                      </td>
 
-            <tbody>
-              {payments.map((payment) => (
-                <tr key={payment.id}>
-                  <td>
-                    {payment.hotel_bookings?.guest_name || 'Unknown guest'}
-                  </td>
-                  <td>₹{Number(payment.amount).toFixed(2)}</td>
-                  <td>{payment.payment_method}</td>
-                  <td>{payment.payment_status}</td>
-                  <td>
-                    {new Date(payment.payment_date).toLocaleDateString()}
-                  </td>
-                  <td>{payment.notes || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                      <td>{payment.payment_method}</td>
+
+                      <td>
+                        <span className={`payment-status ${
+                          payment.payment_status.toLowerCase()
+                        }`}>
+                          {payment.payment_status}
+                        </span>
+                      </td>
+
+                      <td>
+                        {new Date(payment.payment_date).toLocaleDateString()}
+                      </td>
+
+                      <td>{payment.notes || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
       </div>
     </div>
   )

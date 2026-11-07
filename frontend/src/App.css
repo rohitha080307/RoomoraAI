@@ -1,27 +1,67 @@
+
 * {
   box-sizing: border-box;
 }
 
+:root {
+  --chocolate: #38251F;
+  --coffee: #76513D;
+  --caramel: #B58A68;
+  --cream: #F5EFE8;
+  --white: #FFFFFF;
+  --text: #382D28;
+  --muted: #8A7B72;
+  --border: #E8DDD3;
+  --success: #287A55;
+  --success-bg: #E5F2E9;
+  --warning: #A66A20;
+  --warning-bg: #FFF1D9;
+  --danger: #B43F3F;
+  --danger-bg: #FCEAEA;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f5f7fb;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: var(--cream);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .app {
   min-height: 100vh;
   padding: 70px 20px;
   text-align: center;
+  background: var(--cream);
 }
 
 .app h1 {
   font-size: 42px;
-  color: #243b53;
+  color: var(--chocolate);
   margin-bottom: 10px;
 }
 
 .app > p {
-  color: #627d98;
+  color: var(--muted);
   font-size: 18px;
   margin-bottom: 50px;
 }
@@ -34,20 +74,21 @@ body {
 }
 
 .option-card {
-  background: white;
+  background: var(--white);
   width: 320px;
   padding: 35px 25px;
+  border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 25px rgba(56, 37, 31, 0.07);
 }
 
 .option-card h2 {
-  color: #243b53;
+  color: var(--chocolate);
   margin-bottom: 15px;
 }
 
 .option-card p {
-  color: #627d98;
+  color: var(--muted);
   line-height: 1.6;
   min-height: 50px;
 }
@@ -55,14 +96,40 @@ body {
 .option-card button {
   margin-top: 20px;
   padding: 12px 22px;
-  background: #2563eb;
+  background: var(--coffee);
   color: white;
   border: none;
   border-radius: 8px;
-  cursor: pointer;
   font-size: 15px;
+  transition: background 0.2s ease;
 }
 
 .option-card button:hover {
-  background: #1d4ed8;
+  background: var(--chocolate);
+}
+
+.error-message {
+  color: var(--danger);
+  background: var(--danger-bg);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+
+.success-message {
+  color: var(--success);
+  background: var(--success-bg);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 40px 16px;
+  }
+
+  .app h1 {
+    font-size: 30px;
+  }
 }

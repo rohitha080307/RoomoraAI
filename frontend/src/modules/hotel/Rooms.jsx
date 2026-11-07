@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
@@ -53,12 +54,21 @@ function Rooms() {
     (room) => room.status === 'Maintenance'
   ).length
 
+  // Add new room
   const handleAddRoom = async (event) => {
     event.preventDefault()
     setError('')
 
-    if (!roomNumber.trim() || !price || Number(price) <= 0) {
-      setError('Please enter a room number and a valid price.')
+    if (
+      !roomNumber.trim() ||
+      !price ||
+      Number(price) <= 0 ||
+      !capacity ||
+      Number(capacity) < 1
+    ) {
+      setError(
+        'Please enter a room number, valid price and maximum guest capacity.'
+      )
       return
     }
 
@@ -83,6 +93,7 @@ function Rooms() {
       setError(error.message)
     } else {
       setRooms((previousRooms) => [...previousRooms, data])
+
       setRoomNumber('')
       setFloor('1')
       setType('Double')
@@ -94,6 +105,7 @@ function Rooms() {
     setSaving(false)
   }
 
+  // Update room status
   const handleStatusChange = async (roomId, newStatus) => {
     setError('')
 
@@ -115,6 +127,7 @@ function Rooms() {
     }
   }
 
+  // Delete room
   const handleDeleteRoom = async (roomId) => {
     const confirmDelete = window.confirm(
       'Are you sure you want to delete this room?'
@@ -159,6 +172,7 @@ function Rooms() {
 
       {error && <div className="rooms-error">{error}</div>}
 
+      {/* Room Summary */}
       <section className="room-summary">
         <div className="summary-card">
           <span>Total Rooms</span>
@@ -181,6 +195,7 @@ function Rooms() {
         </div>
       </section>
 
+      {/* Add Room Form */}
       <section className="room-form-section">
         <div className="section-heading">
           <h2>Add New Room</h2>
@@ -227,7 +242,9 @@ function Rooms() {
           </div>
 
           <div className="form-field">
-            <label htmlFor="capacity">Capacity</label>
+            <label htmlFor="capacity">
+              Maximum Guests Allowed
+            </label>
             <input
               id="capacity"
               type="number"
@@ -236,6 +253,9 @@ function Rooms() {
               onChange={(event) => setCapacity(event.target.value)}
               required
             />
+            <small>
+              Set the maximum number of guests permitted in this room.
+            </small>
           </div>
 
           <div className="form-field">
@@ -264,12 +284,17 @@ function Rooms() {
             </select>
           </div>
 
-          <button className="add-room-button" type="submit" disabled={saving}>
+          <button
+            className="add-room-button"
+            type="submit"
+            disabled={saving}
+          >
             {saving ? 'Saving...' : '+ Add Room'}
           </button>
         </form>
       </section>
 
+      {/* Room List */}
       <section className="room-list-section">
         <div className="section-heading">
           <h2>Room List</h2>
@@ -291,7 +316,7 @@ function Rooms() {
                   <th>Room</th>
                   <th>Floor</th>
                   <th>Type</th>
-                  <th>Capacity</th>
+                  <th>Maximum Guests</th>
                   <th>Price / Night</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -301,12 +326,15 @@ function Rooms() {
               <tbody>
                 {rooms.map((room) => (
                   <tr key={room.id}>
-                    <td className="room-number-cell">{room.room_number}</td>
+                    <td className="room-number-cell">
+                      {room.room_number}
+                    </td>
                     <td>{room.floor}</td>
                     <td>{room.room_type}</td>
                     <td>{room.capacity} guests</td>
                     <td>
-                      ₹{Number(room.price_per_night).toLocaleString('en-IN')}
+                      ₹
+                      {Number(room.price_per_night).toLocaleString('en-IN')}
                     </td>
                     <td>
                       <span
@@ -323,7 +351,10 @@ function Rooms() {
                           value={room.status}
                           aria-label={`Status for room ${room.room_number}`}
                           onChange={(event) =>
-                            handleStatusChange(room.id, event.target.value)
+                            handleStatusChange(
+                              room.id,
+                              event.target.value
+                            )
                           }
                         >
                           <option value="Available">Available</option>

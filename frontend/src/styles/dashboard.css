@@ -1,19 +1,18 @@
-* {
-  box-sizing: border-box;
-}
 
 .dashboard {
   display: flex;
   min-height: 100vh;
-  background: #f4f7fb;
-  color: #243247;
-  font-family: Arial, sans-serif;
+  background: #F5EFE8;
+  color: #382D28;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
 }
 
+/* Sidebar */
 .sidebar {
   width: 250px;
-  background: #172b4d;
-  color: white;
+  flex-shrink: 0;
+  background: #38251F;
+  color: #FFFFFF;
   padding: 28px 18px;
   display: flex;
   flex-direction: column;
@@ -22,12 +21,13 @@
 .sidebar h2 {
   margin: 0 0 35px;
   font-size: 25px;
+  letter-spacing: 0.5px;
 }
 
 .side-label {
   font-size: 11px;
-  color: #a8b7cc;
-  letter-spacing: 1px;
+  color: #C4AA98;
+  letter-spacing: 1.5px;
   margin-bottom: 15px;
 }
 
@@ -40,25 +40,31 @@
 .sidebar nav button,
 .back-btn {
   background: transparent;
-  color: #dce5f1;
+  color: #E8DDD3;
   border: none;
   padding: 13px;
   text-align: left;
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
+  transition: 0.2s ease;
 }
 
 .sidebar nav button:hover,
 .sidebar nav button.active {
-  background: #2c466b;
-  color: white;
+  background: #76513D;
+  color: #FFFFFF;
 }
 
 .back-btn {
   margin-top: auto;
 }
 
+.back-btn:hover {
+  background: #76513D;
+}
+
+/* Main content */
 .main-content {
   flex: 1;
   padding: 35px;
@@ -76,13 +82,15 @@
 .dashboard-header h1 {
   margin: 0 0 8px;
   font-size: 28px;
+  color: #38251F;
 }
 
 .dashboard-header p {
   margin: 0;
-  color: #738197;
+  color: #8A7B72;
 }
 
+/* Buttons */
 .primary-btn,
 .secondary-btn {
   border: none;
@@ -90,18 +98,29 @@
   padding: 12px 18px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  transition: 0.2s ease;
 }
 
 .primary-btn {
-  background: #2563eb;
+  background: #76513D;
   color: white;
 }
 
-.secondary-btn {
-  background: #e8efff;
-  color: #2455b5;
+.primary-btn:hover {
+  background: #38251F;
 }
 
+.secondary-btn {
+  background: #E9DCD0;
+  color: #5A3C2D;
+}
+
+.secondary-btn:hover {
+  background: #DDC7B5;
+}
+
+/* Statistics */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -111,22 +130,34 @@
 
 .stat-card,
 .content-card {
-  background: white;
-  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E8DDD3;
+  border-radius: 14px;
   padding: 22px;
-  box-shadow: 0 3px 12px rgba(30, 50, 80, 0.04);
+  box-shadow: 0 4px 16px rgba(56, 37, 31, 0.05);
+}
+
+.stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(56, 37, 31, 0.09);
 }
 
 .stat-card span {
-  color: #718096;
+  color: #8A7B72;
   font-size: 14px;
 }
 
 .stat-card h2 {
   margin: 15px 0 0;
   font-size: 30px;
+  color: #38251F;
 }
 
+/* Content sections */
 .content-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -136,15 +167,18 @@
 
 .content-card h3 {
   margin: 0 0 20px;
+  color: #38251F;
 }
 
 .empty-state {
-  color: #8a96a8;
+  color: #A3958B;
   text-align: center;
   padding: 25px 10px;
 }
 
+/* Tables */
 .table-wrapper {
+  width: 100%;
   overflow-x: auto;
 }
 
@@ -157,15 +191,25 @@ table {
 th,
 td {
   padding: 14px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid #F0E8E1;
   font-size: 14px;
 }
 
 th {
-  color: #718096;
-  font-weight: 600;
+  color: #76513D;
+  font-weight: 700;
+  background: #FAF7F3;
 }
 
+td {
+  color: #51433C;
+}
+
+tbody tr:hover {
+  background: #FCF9F6;
+}
+
+/* Responsive design */
 @media (max-width: 1000px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -179,13 +223,42 @@ th {
 
   .sidebar {
     width: 100%;
+    padding: 20px;
+  }
+
+  .sidebar h2 {
+    margin-bottom: 20px;
+  }
+
+  .sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .main-content {
     padding: 20px;
   }
 
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 450px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar nav {
+    grid-template-columns: 1fr;
+  }
+
+  .main-content {
+    padding: 15px;
   }
 }
